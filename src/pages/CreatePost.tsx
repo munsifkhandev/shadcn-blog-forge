@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Navbar from "@/components/Navbar";
 import RichTextEditor from "@/components/RichTextEditor";
+import { ImageUpload } from "@/components/ImageUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -143,12 +144,11 @@ const CreatePost = () => {
                     name="imageUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Image URL (optional)</FormLabel>
                         <FormControl>
-                          <Input
-                            type="url"
-                            placeholder="https://example.com/image.jpg"
-                            {...field}
+                          <ImageUpload
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            label="Post Image"
                           />
                         </FormControl>
                         <FormMessage />
