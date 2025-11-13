@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { signupSchema, type SignupFormData } from "@/lib/validations";
 import { addUser, getUserByEmail } from "@/lib/storage";
 import { getStoredUser } from "@/lib/auth";
+import { User } from "@/lib/mockData";
 import { Loader2 } from "lucide-react";
 
 const Signup = () => {
@@ -45,11 +46,14 @@ const Signup = () => {
         return;
       }
 
-      const newUser = {
+      const newUser: User = {
         id: Date.now().toString(),
         name: data.name,
         email: data.email,
         passwordHash: `hashed_${data.password}`, // In production, use proper hashing
+        role: "USER",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       addUser(newUser);

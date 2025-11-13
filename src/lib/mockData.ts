@@ -3,6 +3,9 @@ export interface User {
   name: string;
   email: string;
   passwordHash: string;
+  role: 'ADMIN' | 'USER';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Post {
@@ -22,13 +25,19 @@ export const mockUsers: User[] = [
     id: "1",
     name: "John Doe",
     email: "john@example.com",
-    passwordHash: "hashed_password_123",
+    passwordHash: "demo123",
+    role: "ADMIN",
+    createdAt: new Date("2024-01-15").toISOString(),
+    updatedAt: new Date("2024-01-15").toISOString(),
   },
   {
     id: "2",
     name: "Jane Smith",
     email: "jane@example.com",
-    passwordHash: "hashed_password_456",
+    passwordHash: "demo123",
+    role: "USER",
+    createdAt: new Date("2024-02-20").toISOString(),
+    updatedAt: new Date("2024-02-20").toISOString(),
   },
 ];
 
