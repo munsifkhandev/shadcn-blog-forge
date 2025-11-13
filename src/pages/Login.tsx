@@ -61,7 +61,12 @@ const Login = () => {
         description: `Welcome back, ${user.name}`,
       });
       
-      navigate("/dashboard");
+      // Redirect based on role
+      if (user.role === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       toast({
         title: "Error",
