@@ -53,6 +53,34 @@ export const postSchema = z.object({
     .or(z.literal("")),
 });
 
+export const profileUpdateSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, { message: "Name must be at least 2 characters" })
+    .max(100, { message: "Name must be less than 100 characters" }),
+});
+
+export const passwordChangeSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, { message: "Current password is required" })
+    .max(100, { message: "Password must be less than 100 characters" }),
+  newPassword: z
+    .string()
+    .min(6, { message: "New password must be at least 6 characters" })
+    .max(100, { message: "Password must be less than 100 characters" }),
+  confirmPassword: z
+    .string()
+    .min(1, { message: "Please confirm your new password" })
+    .max(100, { message: "Password must be less than 100 characters" }),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
 export type SignupFormData = z.infer<typeof signupSchema>;
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type PostFormData = z.infer<typeof postSchema>;
+export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
+export type PasswordChangeFormData = z.infer<typeof passwordChangeSchema>;
