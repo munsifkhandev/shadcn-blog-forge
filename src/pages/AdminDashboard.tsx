@@ -79,17 +79,30 @@ const AdminDashboard = () => {
   const [editTopicName, setEditTopicName] = useState("");
 
   useEffect(() => {
-    if (!loading) {
-      if (!user || user.role !== "ADMIN") {
-        navigate("/");
-        toast({
-          title: "Access Denied",
-          description: "You must be an admin to access this page.",
-          variant: "destructive",
-        });
-      }
+    if (!loading && (!user || user.role !== "ADMIN")) {
+      navigate("/");
+      toast({
+        title: "Access Denied",
+        description: "You must be an admin to access this page.",
+        variant: "destructive",
+      });
     }
   }, [user, loading, navigate]);
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "ADMIN") {
+    return null;
+  }
 
   useEffect(() => {
     loadData();
