@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { logout } from "@/lib/auth";
-import { LogOut } from "lucide-react";
+import { LogOut, Shield } from "lucide-react";
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -25,6 +25,14 @@ const Navbar = () => {
                 <Link to="/dashboard">
                   <Button variant="ghost">Dashboard</Button>
                 </Link>
+                {user.role === "ADMIN" && (
+                  <Link to="/admin">
+                    <Button variant="default">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Admin Panel
+                    </Button>
+                  </Link>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground hidden sm:inline">
                     {user.name}
