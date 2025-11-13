@@ -1,9 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, X, ImageIcon } from "lucide-react";
+import { Upload, X, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ImageUploadProps {
@@ -13,8 +11,6 @@ interface ImageUploadProps {
 }
 
 export const ImageUpload = ({ value, onChange, label = "Post Image" }: ImageUploadProps) => {
-  const [activeTab, setActiveTab] = useState<"upload" | "url">("url");
-  const [urlInput, setUrlInput] = useState(value || "");
   const [previewUrl, setPreviewUrl] = useState(value || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -71,15 +67,8 @@ export const ImageUpload = ({ value, onChange, label = "Post Image" }: ImageUplo
     }
   };
 
-  const handleUrlChange = (url: string) => {
-    setUrlInput(url);
-    onChange(url);
-    setPreviewUrl(url);
-  };
-
   const handleRemoveImage = () => {
     setPreviewUrl("");
-    setUrlInput("");
     onChange("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -90,54 +79,27 @@ export const ImageUpload = ({ value, onChange, label = "Post Image" }: ImageUplo
     <div className="space-y-4">
       <Label>{label} (optional)</Label>
       
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "url")}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="url">
-            <LinkIcon className="h-4 w-4 mr-2" />
-            Image URL
-          </TabsTrigger>
-          <TabsTrigger value="upload">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Image
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="url" className="space-y-3">
-          <Input
-            type="url"
-            placeholder="https://example.com/image.jpg"
-            value={urlInput}
-            onChange={(e) => handleUrlChange(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            Enter a direct link to an image hosted online
-          </p>
-        </TabsContent>
-
-        <TabsContent value="upload" className="space-y-3">
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Choose Image
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Upload from your computer (max 2MB)
-          </p>
-        </TabsContent>
-      </Tabs>
+      <div className="space-y-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full"
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          {previewUrl ? "Change Image" : "Upload Image"}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <p className="text-xs text-muted-foreground">
+          Upload an image from your computer (max 2MB)
+        </p>
+      </div>
 
       {/* Image Preview */}
       {previewUrl && (
