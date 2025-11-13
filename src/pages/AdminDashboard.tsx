@@ -137,7 +137,7 @@ const AdminDashboard = () => {
 
   const handleTogglePostStatus = (postId: string) => {
     const updatedPosts = posts.map((p) =>
-      p.id === postId ? { ...p, status: p.status === "published" ? "draft" : "published" } : p
+      p.id === postId ? { ...p, status: (p.status === "published" ? "draft" : "published") as "draft" | "published" } : p
     );
     setPosts(updatedPosts);
     setPosts_(updatedPosts);
