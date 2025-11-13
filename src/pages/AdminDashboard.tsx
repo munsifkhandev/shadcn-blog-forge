@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { getPosts, setPosts, getUsers, setUsers } from "@/lib/storage";
-import { Post, User } from "@/lib/mockData";
+import { getPosts, setPosts, getUsers, setUsers, getTopics, setTopics, addTopic, updateTopic, deleteTopic } from "@/lib/storage";
+import { Post, User, Topic } from "@/lib/mockData";
 import { logout } from "@/lib/auth";
 import {
   LayoutDashboard,
@@ -13,9 +13,10 @@ import {
   Pencil,
   Trash2,
   Shield,
-  Menu,
+  Tag,
+  PlusCircle,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,6 +26,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,25 +44,39 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
 
-type Page = "overview" | "posts" | "users";
+type Page = "overview" | "posts" | "users" | "topics";
 
 const AdminDashboard = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState<Page>("overview");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Data states
   const [posts, setPosts_] = useState<Post[]>([]);
   const [users, setUsers_] = useState<User[]>([]);
+  const [topics, setTopics_] = useState<Topic[]>([]);
 
   // Dialog states
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteTopicId, setDeleteTopicId] = useState<string | null>(null);
+  const [editTopicDialog, setEditTopicDialog] = useState<{ open: boolean; topic: Topic | null }>({ open: false, topic: null });
+  
+  // Topic form states
+  const [newTopicName, setNewTopicName] = useState("");
+  const [editTopicName, setEditTopicName] = useState("");
 
   useEffect(() => {
     if (!loading) {
@@ -81,6 +98,7 @@ const AdminDashboard = () => {
   const loadData = () => {
     setPosts_(getPosts());
     setUsers_(getUsers());
+    setTopics_(getTopics());
   };
 
   const handleDeletePost = (postId: string) => {
@@ -117,9 +135,92 @@ const AdminDashboard = () => {
     });
   };
 
+  const handleTogglePostStatus = (postId: string) => {
+    const updatedPosts = posts.map((p) =>
+      p.id === postId ? { ...p, status: p.status === "published" ? "draft" : "published" } : p
+    );
+    setPosts(updatedPosts);
+    setPosts_(updatedPosts);
+    toast({
+      title: "Status Updated",
+      description: "Post status has been successfully updated.",
+    });
+  };
+
+  const handleAddTopic = () => {
+    if (!newTopicName.trim()) {
+      toast({
+        title: "Error",
+        description: "Topic name cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const slug = newTopicName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const newTopic: Topic = {
+      id: Date.now().toString(),
+      name: newTopicName,
+      slug,
+    };
+
+    addTopic(newTopic);
+    setTopics_([...topics, newTopic]);
+    setNewTopicName("");
+    toast({
+      title: "Topic Created",
+      description: "The topic has been successfully created.",
+    });
+  };
+
+  const handleUpdateTopic = () => {
+    if (!editTopicDialog.topic || !editTopicName.trim()) {
+      toast({
+        title: "Error",
+        description: "Topic name cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const slug = editTopicName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    updateTopic(editTopicDialog.topic.id, { name: editTopicName, slug });
+    setTopics_(topics.map(t => t.id === editTopicDialog.topic!.id ? { ...t, name: editTopicName, slug } : t));
+    setEditTopicDialog({ open: false, topic: null });
+    setEditTopicName("");
+    toast({
+      title: "Topic Updated",
+      description: "The topic has been successfully updated.",
+    });
+  };
+
+  const handleDeleteTopic = (topicId: string) => {
+    deleteTopic(topicId);
+    setTopics_(topics.filter(t => t.id !== topicId));
+    setDeleteTopicId(null);
+    toast({
+      title: "Topic Deleted",
+      description: "The topic has been successfully deleted.",
+    });
+  };
+
   const getAuthorName = (authorId: string) => {
     const author = users.find((u) => u.id === authorId);
     return author ? author.name : "Unknown";
+  };
+
+  const getTopicName = (topicId?: string) => {
+    if (!topicId) return "Uncategorized";
+    const topic = topics.find((t) => t.id === topicId);
+    return topic ? topic.name : "Uncategorized";
   };
 
   // Calculate posts per day for the last 7 days
@@ -147,7 +248,10 @@ const AdminDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -157,84 +261,86 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="min-h-screen flex w-full">
       {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? "w-64" : "w-20"
-        } bg-card border-r border-border transition-all duration-300 flex flex-col`}
-      >
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          {sidebarOpen && <h2 className="text-xl font-bold text-foreground">Admin Panel</h2>}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
+      <aside className="w-64 bg-muted/30 border-r border-border">
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-8">
+            <Shield className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">Admin Panel</h1>
+          </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          <Button
-            variant={activePage === "overview" ? "secondary" : "ghost"}
-            className="w-full justify-start"
-            onClick={() => setActivePage("overview")}
-          >
-            <LayoutDashboard className="h-5 w-5 mr-2" />
-            {sidebarOpen && "Overview"}
-          </Button>
-          <Button
-            variant={activePage === "posts" ? "secondary" : "ghost"}
-            className="w-full justify-start"
-            onClick={() => setActivePage("posts")}
-          >
-            <FileText className="h-5 w-5 mr-2" />
-            {sidebarOpen && "Manage Posts"}
-          </Button>
-          <Button
-            variant={activePage === "users" ? "secondary" : "ghost"}
-            className="w-full justify-start"
-            onClick={() => setActivePage("users")}
-          >
-            <Users className="h-5 w-5 mr-2" />
-            {sidebarOpen && "Manage Users"}
-          </Button>
-        </nav>
+          <nav className="space-y-2">
+            <Button
+              variant={activePage === "overview" ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActivePage("overview")}
+            >
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              Overview
+            </Button>
+            <Button
+              variant={activePage === "posts" ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActivePage("posts")}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Manage Posts
+            </Button>
+            <Button
+              variant={activePage === "users" ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActivePage("users")}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Manage Users
+            </Button>
+            <Button
+              variant={activePage === "topics" ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActivePage("topics")}
+            >
+              <Tag className="mr-2 h-4 w-4" />
+              Manage Topics
+            </Button>
+          </nav>
 
-        <div className="p-4 border-t border-border">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={logout}
-          >
-            <LogOut className="h-5 w-5 mr-2" />
-            {sidebarOpen && "Logout"}
-          </Button>
+          <div className="mt-auto pt-8">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={logout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">
-              {activePage === "overview" && "Overview"}
+        {/* Header */}
+        <header className="border-b border-border bg-background sticky top-0 z-10">
+          <div className="flex items-center justify-between p-6">
+            <h2 className="text-2xl font-bold">
+              {activePage === "overview" && "Dashboard Overview"}
               {activePage === "posts" && "Manage Posts"}
               {activePage === "users" && "Manage Users"}
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {activePage === "overview" && "Dashboard statistics and insights"}
-              {activePage === "posts" && "View and manage all blog posts"}
-              {activePage === "users" && "View and manage all users"}
-            </p>
+              {activePage === "topics" && "Manage Topics"}
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{user.name}</span>
+            </div>
           </div>
+        </header>
 
-          {/* Overview Page */}
+        {/* Content */}
+        <div className="p-6">
           {activePage === "overview" && (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
+              {/* Stats Cards */}
+              <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
@@ -244,7 +350,6 @@ const AdminDashboard = () => {
                     <div className="text-2xl font-bold">{posts.length}</div>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -254,38 +359,30 @@ const AdminDashboard = () => {
                     <div className="text-2xl font-bold">{users.length}</div>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Admin Users</CardTitle>
-                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Total Topics</CardTitle>
+                    <Tag className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {users.filter((u) => u.role === "ADMIN").length}
-                    </div>
+                    <div className="text-2xl font-bold">{topics.length}</div>
                   </CardContent>
                 </Card>
               </div>
 
+              {/* Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Posts per Day (Last 7 Days)</CardTitle>
+                  <CardTitle>Posts Activity (Last 7 Days)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={getPostsPerDay()}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="date" className="text-sm" />
-                      <YAxis className="text-sm" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "0.5rem",
-                        }}
-                      />
-                      <Bar dataKey="posts" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="posts" fill="hsl(var(--primary))" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -293,69 +390,79 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Manage Posts Page */}
           {activePage === "posts" && (
             <Card>
-              <CardContent className="p-0">
+              <CardHeader>
+                <CardTitle>All Posts</CardTitle>
+                <CardDescription>Manage all blog posts in the system</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">SN</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Author</TableHead>
+                      <TableHead>Topic</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Created At</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {posts.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          No posts found
+                    {posts.map((post, index) => (
+                      <TableRow key={post.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-medium">{post.title}</TableCell>
+                        <TableCell>{getAuthorName(post.authorId)}</TableCell>
+                        <TableCell>{getTopicName(post.topicId)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={post.status === "published"}
+                              onCheckedChange={() => handleTogglePostStatus(post.id)}
+                            />
+                            <span className="text-sm">{post.status === "published" ? "Published" : "Draft"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{format(new Date(post.createdAt), "MMM dd, yyyy")}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/edit/${post.id}`)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletePostId(post.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      posts.map((post) => (
-                        <TableRow key={post.id}>
-                          <TableCell className="font-medium">{post.title}</TableCell>
-                          <TableCell>{getAuthorName(post.authorId)}</TableCell>
-                          <TableCell>{format(new Date(post.createdAt), "MMM dd, yyyy")}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => navigate(`/dashboard/edit/${post.id}`)}
-                                >
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setDeletePostId(post.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
           )}
 
-          {/* Manage Users Page */}
           {activePage === "users" && (
             <Card>
-              <CardContent className="p-0">
+              <CardHeader>
+                <CardTitle>All Users</CardTitle>
+                <CardDescription>Manage user roles and permissions</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -366,28 +473,99 @@ const AdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          No users found
+                    {users.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.name}</TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              u.role === "ADMIN"
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {u.role}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleToggleRole(u.id)}>
+                                <Shield className="mr-2 h-4 w-4" />
+                                Change Role
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeleteUserId(u.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                user.role === "ADMIN"
-                                  ? "bg-primary/10 text-primary"
-                                  : "bg-secondary text-secondary-foreground"
-                              }`}
-                            >
-                              {user.role}
-                            </span>
-                          </TableCell>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {activePage === "topics" && (
+            <div className="space-y-6">
+              {/* Create Topic */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create New Topic</CardTitle>
+                  <CardDescription>Add a new category for blog posts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter topic name"
+                      value={newTopicName}
+                      onChange={(e) => setNewTopicName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleAddTopic();
+                        }
+                      }}
+                    />
+                    <Button onClick={handleAddTopic}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Topic
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Topics Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Topics</CardTitle>
+                  <CardDescription>Manage blog post categories</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Slug</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topics.map((topic) => (
+                        <TableRow key={topic.id}>
+                          <TableCell className="font-medium">{topic.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{topic.slug}</TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -396,46 +574,48 @@ const AdminDashboard = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleToggleRole(user.id)}>
-                                  <Shield className="h-4 w-4 mr-2" />
-                                  Change to {user.role === "ADMIN" ? "User" : "Admin"}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setEditTopicDialog({ open: true, topic });
+                                    setEditTopicName(topic.name);
+                                  }}
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setDeleteUserId(user.id)}
+                                  onClick={() => setDeleteTopicId(topic.id)}
+                                  className="text-destructive"
                                 >
-                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  <Trash2 className="mr-2 h-4 w-4" />
                                   Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </main>
 
       {/* Delete Post Dialog */}
-      <AlertDialog open={!!deletePostId} onOpenChange={() => setDeletePostId(null)}>
+      <AlertDialog open={deletePostId !== null} onOpenChange={() => setDeletePostId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this post. This action cannot be undone.
+              This action cannot be undone. This will permanently delete the blog post.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deletePostId && handleDeletePost(deletePostId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={() => deletePostId && handleDeletePost(deletePostId)}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -443,25 +623,68 @@ const AdminDashboard = () => {
       </AlertDialog>
 
       {/* Delete User Dialog */}
-      <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+      <AlertDialog open={deleteUserId !== null} onOpenChange={() => setDeleteUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this user. This action cannot be undone.
+              This action cannot be undone. This will permanently delete the user account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteUserId && handleDeleteUser(deleteUserId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={() => deleteUserId && handleDeleteUser(deleteUserId)}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Topic Dialog */}
+      <AlertDialog open={deleteTopicId !== null} onOpenChange={() => setDeleteTopicId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the topic. Posts with this topic will become uncategorized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTopicId && handleDeleteTopic(deleteTopicId)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Topic Dialog */}
+      <Dialog open={editTopicDialog.open} onOpenChange={(open) => setEditTopicDialog({ open, topic: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Topic</DialogTitle>
+            <DialogDescription>Update the topic name</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Topic name"
+              value={editTopicName}
+              onChange={(e) => setEditTopicName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUpdateTopic();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTopicDialog({ open: false, topic: null })}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateTopic}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

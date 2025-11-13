@@ -8,6 +8,12 @@ export interface User {
   updatedAt: string;
 }
 
+export interface Topic {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface Post {
   id: string;
   title: string;
@@ -16,9 +22,34 @@ export interface Post {
   content: string;
   imageUrl?: string;
   authorId: string;
+  topicId?: string;
+  status?: 'published' | 'draft';
   createdAt: string;
   updatedAt: string;
 }
+
+export const mockTopics: Topic[] = [
+  {
+    id: "1",
+    name: "Technology",
+    slug: "technology",
+  },
+  {
+    id: "2",
+    name: "Design",
+    slug: "design",
+  },
+  {
+    id: "3",
+    name: "Development",
+    slug: "development",
+  },
+  {
+    id: "4",
+    name: "Business",
+    slug: "business",
+  },
+];
 
 export const mockUsers: User[] = [
   {
@@ -65,6 +96,8 @@ React makes it painless to create interactive UIs. Design simple views for each 
 Let's dive deeper into each of these concepts and see how they work together to create amazing applications.`,
     imageUrl: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80",
     authorId: "1",
+    topicId: "3",
+    status: "published",
     createdAt: "2024-01-15T10:00:00Z",
     updatedAt: "2024-01-15T10:00:00Z",
   },
@@ -90,6 +123,8 @@ Learn about utility types, conditional types, and mapped types to write more exp
 TypeScript is an essential tool for modern web development.`,
     imageUrl: "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&q=80",
     authorId: "1",
+    topicId: "1",
+    status: "published",
     createdAt: "2024-01-20T14:30:00Z",
     updatedAt: "2024-01-20T14:30:00Z",
   },
@@ -115,6 +150,8 @@ Tailwind makes responsive design intuitive with its mobile-first approach and re
 Extend Tailwind's default theme to match your brand perfectly.`,
     imageUrl: "https://images.unsplash.com/photo-1507721999472-8ed4421c4af2?w=800&q=80",
     authorId: "2",
+    topicId: "2",
+    status: "published",
     createdAt: "2024-02-01T09:15:00Z",
     updatedAt: "2024-02-01T09:15:00Z",
   },
@@ -140,6 +177,8 @@ Consider libraries like Zustand, Jotai, or Redux for more complex scenarios.
 Choose the right tool for your specific needs.`,
     imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80",
     authorId: "2",
+    topicId: "3",
+    status: "published",
     createdAt: "2024-02-10T16:45:00Z",
     updatedAt: "2024-02-10T16:45:00Z",
   },
@@ -149,6 +188,7 @@ Choose the right tool for your specific needs.`,
 export const initializeMockData = () => {
   const POSTS_KEY = "blog_posts";
   const USERS_KEY = "blog_users";
+  const TOPICS_KEY = "blog_topics";
   
   if (!localStorage.getItem(POSTS_KEY)) {
     localStorage.setItem(POSTS_KEY, JSON.stringify(mockPosts));
@@ -156,5 +196,9 @@ export const initializeMockData = () => {
   
   if (!localStorage.getItem(USERS_KEY)) {
     localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
+  }
+
+  if (!localStorage.getItem(TOPICS_KEY)) {
+    localStorage.setItem(TOPICS_KEY, JSON.stringify(mockTopics));
   }
 };

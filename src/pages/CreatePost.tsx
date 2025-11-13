@@ -8,18 +8,21 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { getStoredUser } from "@/lib/auth";
-import { addPost } from "@/lib/storage";
+import { addPost, getTopics } from "@/lib/storage";
 import { postSchema, type PostFormData } from "@/lib/validations";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { Topic } from "@/lib/mockData";
 
 const CreatePost = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState(getStoredUser());
+  const [topics, setTopics] = useState<Topic[]>([]);
 
   useEffect(() => {
     const user = getStoredUser();
@@ -27,6 +30,7 @@ const CreatePost = () => {
     if (!user) {
       navigate("/login");
     }
+    setTopics(getTopics());
   }, [navigate]);
 
   const form = useForm<PostFormData>({
@@ -43,11 +47,7 @@ const CreatePost = () => {
     if (!currentUser) return;
 
     try {
-      const slug = data.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-
+      const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       const newPost = {
         id: Date.now().toString(),
         title: data.title,
@@ -56,141 +56,60 @@ const CreatePost = () => {
         content: data.content,
         imageUrl: data.imageUrl || undefined,
         authorId: currentUser.id,
+        topicId: (data as any).topicId || undefined,
+        status: "published" as const,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       addPost(newPost);
-
-      toast({
-        title: "Post created!",
-        description: "Your blog post has been published successfully.",
-      });
-
+      toast({ title: "Post created!", description: "Your blog post has been published successfully." });
       navigate("/dashboard");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create post. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create post. Please try again.", variant: "destructive" });
     }
   };
 
-  if (!currentUser) {
-    return null;
-  }
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
-          <Link to="/dashboard">
-            <Button variant="ghost">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Button>
-          </Link>
-          
+          <Link to="/dashboard"><Button variant="ghost"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Button></Link>
           <Card>
             <CardHeader>
               <CardTitle className="text-3xl">Create New Post</CardTitle>
-              <CardDescription>
-                Share your thoughts with the world
-              </CardDescription>
+              <CardDescription>Share your thoughts with the world</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter your blog title"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="excerpt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Excerpt *</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Brief description of your post"
-                            rows={2}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="imageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <ImageUpload
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            label="Post Image"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="content"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Content *</FormLabel>
-                        <FormControl>
-                          <RichTextEditor
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Write your blog content here..."
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+                  <FormField control={form.control} name="title" render={({ field }) => (
+                    <FormItem><FormLabel>Title *</FormLabel><FormControl><Input placeholder="Enter your blog title" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="excerpt" render={({ field }) => (
+                    <FormItem><FormLabel>Excerpt *</FormLabel><FormControl><Textarea placeholder="Brief description of your post" rows={2} {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormItem>
+                    <FormLabel>Topic</FormLabel>
+                    <Select onValueChange={(value) => form.setValue("topicId" as any, value)}>
+                      <SelectTrigger><SelectValue placeholder="Select a topic (optional)" /></SelectTrigger>
+                      <SelectContent>{topics.map((topic) => (<SelectItem key={topic.id} value={topic.id}>{topic.name}</SelectItem>))}</SelectContent>
+                    </Select>
+                  </FormItem>
+                  <FormField control={form.control} name="imageUrl" render={({ field }) => (
+                    <FormItem><FormControl><ImageUpload value={field.value || ""} onChange={field.onChange} label="Post Image" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="content" render={({ field }) => (
+                    <FormItem><FormLabel>Content *</FormLabel><FormControl><RichTextEditor value={field.value} onChange={field.onChange} placeholder="Write your blog content here..." /></FormControl><FormMessage /></FormItem>
+                  )} />
                   <div className="flex gap-4">
-                    <Button 
-                      type="submit" 
-                      size="lg" 
-                      className="flex-1"
-                      disabled={form.formState.isSubmitting}
-                    >
-                      {form.formState.isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Publish Post
+                    <Button type="submit" size="lg" className="flex-1" disabled={form.formState.isSubmitting}>
+                      {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Publish Post
                     </Button>
-                    <Link to="/dashboard" className="flex-1">
-                      <Button type="button" variant="outline" size="lg" className="w-full">
-                        Cancel
-                      </Button>
-                    </Link>
+                    <Link to="/dashboard" className="flex-1"><Button type="button" variant="outline" size="lg" className="w-full">Cancel</Button></Link>
                   </div>
                 </form>
               </Form>
