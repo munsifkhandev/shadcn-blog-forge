@@ -89,6 +89,8 @@ const Dashboard = () => {
     return null;
   }
 
+  console.log("Dashboard loaded - New layout version 2.0");
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -96,7 +98,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Dashboard Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-4xl font-bold text-foreground">
                 Welcome back, {currentUser.name}!
@@ -106,7 +108,7 @@ const Dashboard = () => {
               </p>
             </div>
             <Link to="/dashboard/new">
-              <Button size="lg">
+              <Button size="lg" className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />
                 Create New Post
               </Button>
