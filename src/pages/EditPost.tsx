@@ -1,59 +1,95 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Navbar from "@/components/Navbar";
+import RichTextEditor from "@/components/RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { mockPosts, getCurrentUser } from "@/lib/mockData";
-import { ArrowLeft } from "lucide-react";
+import { getPosts, updatePost } from "@/lib/storage";
+import { getStoredUser } from "@/lib/auth";
+import { Post } from "@/lib/mockData";
+import { postSchema, type PostFormData } from "@/lib/validations";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 const EditPost = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const currentUser = getCurrentUser();
-  
-  const post = mockPosts.find((p) => p.id === id);
-  
-  const [title, setTitle] = useState("");
-  const [excerpt, setExcerpt] = useState("");
-  const [content, setContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [post, setPost] = useState<Post | null>(null);
+  const [currentUser, setCurrentUser] = useState(getStoredUser());
+
+  const form = useForm<PostFormData>({
+    resolver: zodResolver(postSchema),
+    defaultValues: {
+      title: "",
+      excerpt: "",
+      content: "",
+      imageUrl: "",
+    },
+  });
 
   useEffect(() => {
-    if (post) {
-      setTitle(post.title);
-      setExcerpt(post.excerpt);
-      setContent(post.content);
-      setImageUrl(post.imageUrl || "");
-    }
-  }, [post]);
+    const user = getStoredUser();
+    setCurrentUser(user);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    toast({
-      title: "Post updated!",
-      description: "Your changes have been saved successfully.",
-    });
-    navigate("/dashboard");
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    const posts = getPosts();
+    const foundPost = posts.find((p) => p.id === id);
+
+    if (foundPost) {
+      setPost(foundPost);
+      form.reset({
+        title: foundPost.title,
+        excerpt: foundPost.excerpt,
+        content: foundPost.content,
+        imageUrl: foundPost.imageUrl || "",
+      });
+    }
+  }, [id, navigate, form]);
+
+  const onSubmit = async (data: PostFormData) => {
+    if (!currentUser || !post) return;
+
+    try {
+      const slug = data.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+      updatePost(post.id, {
+        title: data.title,
+        slug,
+        excerpt: data.excerpt,
+        content: data.content,
+        imageUrl: data.imageUrl || undefined,
+      });
+
+      toast({
+        title: "Post updated!",
+        description: "Your changes have been saved successfully.",
+      });
+
+      navigate("/dashboard");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update post. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-3xl font-bold mb-4">Please login to edit posts</h1>
-          <Link to="/login">
-            <Button>Go to Login</Button>
-          </Link>
-        </main>
-      </div>
-    );
+    return null;
   }
 
   if (!post) {
@@ -90,7 +126,7 @@ const EditPost = () => {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           <Link to="/dashboard">
             <Button variant="ghost">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -106,64 +142,99 @@ const EditPost = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    placeholder="Enter your blog title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your blog title"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="excerpt">Excerpt *</Label>
-                  <Textarea
-                    id="excerpt"
-                    placeholder="Brief description of your post"
-                    value={excerpt}
-                    onChange={(e) => setExcerpt(e.target.value)}
-                    rows={2}
-                    required
+                  
+                  <FormField
+                    control={form.control}
+                    name="excerpt"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Excerpt *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Brief description of your post"
+                            rows={2}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL (optional)</Label>
-                  <Input
-                    id="imageUrl"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
+                  
+                  <FormField
+                    control={form.control}
+                    name="imageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image URL (optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="url"
+                            placeholder="https://example.com/image.jpg"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="content">Content *</Label>
-                  <Textarea
-                    id="content"
-                    placeholder="Write your blog content here... (Supports markdown)"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={15}
-                    required
+                  
+                  <FormField
+                    control={form.control}
+                    name="content"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Content *</FormLabel>
+                        <FormControl>
+                          <RichTextEditor
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Write your blog content here..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="flex gap-4">
-                  <Button type="submit" size="lg" className="flex-1">
-                    Update Post
-                  </Button>
-                  <Link to="/dashboard" className="flex-1">
-                    <Button type="button" variant="outline" size="lg" className="w-full">
-                      Cancel
+                  
+                  <div className="flex gap-4">
+                    <Button 
+                      type="submit" 
+                      size="lg" 
+                      className="flex-1"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Update Post
                     </Button>
-                  </Link>
-                </div>
-              </form>
+                    <Link to="/dashboard" className="flex-1">
+                      <Button type="button" variant="outline" size="lg" className="w-full">
+                        Cancel
+                      </Button>
+                    </Link>
+                  </div>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </div>

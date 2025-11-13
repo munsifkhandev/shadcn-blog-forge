@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
-import { getCurrentUser } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { logout } from "@/lib/auth";
+import { LogOut } from "lucide-react";
 
 const Navbar = () => {
-  const currentUser = getCurrentUser();
+  const { user } = useAuth();
 
   return (
     <nav className="border-b bg-card">
@@ -18,12 +20,19 @@ const Navbar = () => {
               <Button variant="ghost">Blogs</Button>
             </Link>
             
-            {currentUser ? (
+            {user ? (
               <>
                 <Link to="/dashboard">
                   <Button variant="ghost">Dashboard</Button>
                 </Link>
-                <Button variant="outline">{currentUser.name}</Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground hidden sm:inline">
+                    {user.name}
+                  </span>
+                  <Button variant="outline" size="icon" onClick={logout} title="Logout">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </div>
               </>
             ) : (
               <>

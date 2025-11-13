@@ -1,46 +1,83 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Navbar from "@/components/Navbar";
+import RichTextEditor from "@/components/RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUser } from "@/lib/mockData";
-import { ArrowLeft } from "lucide-react";
+import { getStoredUser } from "@/lib/auth";
+import { addPost } from "@/lib/storage";
+import { postSchema, type PostFormData } from "@/lib/validations";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 const CreatePost = () => {
-  const [title, setTitle] = useState("");
-  const [excerpt, setExcerpt] = useState("");
-  const [content, setContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(getStoredUser());
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    toast({
-      title: "Post created!",
-      description: "Your blog post has been published successfully.",
-    });
-    navigate("/dashboard");
+  useEffect(() => {
+    const user = getStoredUser();
+    setCurrentUser(user);
+    if (!user) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
+  const form = useForm<PostFormData>({
+    resolver: zodResolver(postSchema),
+    defaultValues: {
+      title: "",
+      excerpt: "",
+      content: "",
+      imageUrl: "",
+    },
+  });
+
+  const onSubmit = async (data: PostFormData) => {
+    if (!currentUser) return;
+
+    try {
+      const slug = data.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+      const newPost = {
+        id: Date.now().toString(),
+        title: data.title,
+        slug,
+        excerpt: data.excerpt,
+        content: data.content,
+        imageUrl: data.imageUrl || undefined,
+        authorId: currentUser.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      addPost(newPost);
+
+      toast({
+        title: "Post created!",
+        description: "Your blog post has been published successfully.",
+      });
+
+      navigate("/dashboard");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create post. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-3xl font-bold mb-4">Please login to create posts</h1>
-          <Link to="/login">
-            <Button>Go to Login</Button>
-          </Link>
-        </main>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -48,7 +85,7 @@ const CreatePost = () => {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           <Link to="/dashboard">
             <Button variant="ghost">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -64,67 +101,99 @@ const CreatePost = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    placeholder="Enter your blog title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your blog title"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="excerpt">Excerpt *</Label>
-                  <Textarea
-                    id="excerpt"
-                    placeholder="Brief description of your post"
-                    value={excerpt}
-                    onChange={(e) => setExcerpt(e.target.value)}
-                    rows={2}
-                    required
+                  
+                  <FormField
+                    control={form.control}
+                    name="excerpt"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Excerpt *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Brief description of your post"
+                            rows={2}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL (optional)</Label>
-                  <Input
-                    id="imageUrl"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
+                  
+                  <FormField
+                    control={form.control}
+                    name="imageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image URL (optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="url"
+                            placeholder="https://example.com/image.jpg"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="content">Content *</Label>
-                  <Textarea
-                    id="content"
-                    placeholder="Write your blog content here... (Supports markdown)"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={15}
-                    required
+                  
+                  <FormField
+                    control={form.control}
+                    name="content"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Content *</FormLabel>
+                        <FormControl>
+                          <RichTextEditor
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Write your blog content here..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <p className="text-sm text-muted-foreground">
-                    You can use markdown formatting in your content.
-                  </p>
-                </div>
-                
-                <div className="flex gap-4">
-                  <Button type="submit" size="lg" className="flex-1">
-                    Publish Post
-                  </Button>
-                  <Link to="/dashboard" className="flex-1">
-                    <Button type="button" variant="outline" size="lg" className="w-full">
-                      Cancel
+                  
+                  <div className="flex gap-4">
+                    <Button 
+                      type="submit" 
+                      size="lg" 
+                      className="flex-1"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Publish Post
                     </Button>
-                  </Link>
-                </div>
-              </form>
+                    <Link to="/dashboard" className="flex-1">
+                      <Button type="button" variant="outline" size="lg" className="w-full">
+                        Cancel
+                      </Button>
+                    </Link>
+                  </div>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </div>

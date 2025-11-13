@@ -1,13 +1,28 @@
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { mockPosts, mockUsers } from "@/lib/mockData";
+import { getPosts } from "@/lib/storage";
+import { getUsers } from "@/lib/storage";
+import { Post } from "@/lib/mockData";
 import { ArrowLeft } from "lucide-react";
 
 const BlogDetail = () => {
   const { slug } = useParams();
-  const post = mockPosts.find((p) => p.slug === slug);
-  const author = post ? mockUsers.find((u) => u.id === post.authorId) : null;
+  const [post, setPost] = useState<Post | null>(null);
+  const [authorName, setAuthorName] = useState("");
+
+  useEffect(() => {
+    const posts = getPosts();
+    const foundPost = posts.find((p) => p.slug === slug);
+    setPost(foundPost || null);
+
+    if (foundPost) {
+      const users = getUsers();
+      const author = users.find((u) => u.id === foundPost.authorId);
+      setAuthorName(author?.name || "Unknown Author");
+    }
+  }, [slug]);
 
   if (!post) {
     return (
@@ -52,7 +67,7 @@ const BlogDetail = () => {
             </h1>
             
             <div className="flex items-center gap-4 text-muted-foreground">
-              <span>By {author?.name}</span>
+              <span>By {authorName}</span>
               <span>•</span>
               <time>{new Date(post.createdAt).toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -68,9 +83,10 @@ const BlogDetail = () => {
             </p>
           </div>
           
-          <div className="prose prose-lg max-w-none text-foreground whitespace-pre-wrap">
-            {post.content}
-          </div>
+          <div 
+            className="prose prose-lg max-w-none text-foreground"
+            dangerouslySetInnerHTML={{ __html: post.content }}
+          />
         </article>
       </main>
     </div>

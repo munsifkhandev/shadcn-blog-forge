@@ -103,3 +103,54 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* React Quill Editor Styles */
+.rich-text-editor .ql-container {
+  @apply rounded-b-md border-input bg-background text-foreground;
+  font-family: inherit;
+  font-size: 0.875rem;
+  min-height: 300px;
+}
+
+.rich-text-editor .ql-toolbar {
+  @apply rounded-t-md border-input bg-muted;
+}
+
+.rich-text-editor .ql-editor {
+  min-height: 300px;
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+  @apply text-muted-foreground;
+  font-style: normal;
+}
+
+.rich-text-editor .ql-snow .ql-stroke {
+  @apply stroke-foreground;
+}
+
+.rich-text-editor .ql-snow .ql-fill {
+  @apply fill-foreground;
+}
+
+.rich-text-editor .ql-snow .ql-picker-label {
+  @apply text-foreground;
+}
+
+.rich-text-editor .ql-toolbar button:hover,
+.rich-text-editor .ql-toolbar button:focus,
+.rich-text-editor .ql-toolbar button.ql-active {
+  @apply bg-accent;
+}
+
+.rich-text-editor .ql-toolbar .ql-stroke {
+  @apply stroke-foreground;
+}
+
+.rich-text-editor .ql-toolbar .ql-fill {
+  @apply fill-foreground;
+}
+
+.rich-text-editor .ql-toolbar .ql-picker-label:hover {
+  @apply text-primary;
+}

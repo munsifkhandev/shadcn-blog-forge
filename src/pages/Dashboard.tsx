@@ -1,22 +1,39 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { mockPosts, getCurrentUser } from "@/lib/mockData";
+import { getPosts, deletePost } from "@/lib/storage";
+import { getStoredUser } from "@/lib/auth";
+import { Post } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
 const Dashboard = () => {
-  const currentUser = getCurrentUser();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const [userPosts] = useState(
-    mockPosts.filter((post) => post.authorId === currentUser?.id)
-  );
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [currentUser, setCurrentUser] = useState(getStoredUser());
+
+  useEffect(() => {
+    const user = getStoredUser();
+    setCurrentUser(user);
+
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    const allPosts = getPosts();
+    const filtered = allPosts.filter((post) => post.authorId === user.id);
+    setUserPosts(filtered);
+  }, [navigate]);
 
   const handleDelete = (postId: string, postTitle: string) => {
+    deletePost(postId);
+    setUserPosts((prev) => prev.filter((p) => p.id !== postId));
+    
     toast({
       title: "Post deleted",
       description: `"${postTitle}" has been removed.`,
@@ -24,17 +41,7 @@ const Dashboard = () => {
   };
 
   if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-3xl font-bold mb-4">Please login to access dashboard</h1>
-          <Link to="/login">
-            <Button>Go to Login</Button>
-          </Link>
-        </main>
-      </div>
-    );
+    return null;
   }
 
   return (

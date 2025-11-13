@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import BlogCard from "@/components/BlogCard";
 import { Input } from "@/components/ui/input";
-import { mockPosts } from "@/lib/mockData";
+import { getPosts } from "@/lib/storage";
+import { Post } from "@/lib/mockData";
 import { Search } from "lucide-react";
 
 const Blogs = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [posts, setPosts] = useState<Post[]>([]);
 
-  const filteredPosts = mockPosts.filter((post) =>
+  useEffect(() => {
+    const loadedPosts = getPosts();
+    setPosts(loadedPosts);
+  }, []);
+
+  const filteredPosts = posts.filter((post) =>
     post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     post.excerpt.toLowerCase().includes(searchQuery.toLowerCase())
   );

@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  passwordHash: string;
 }
 
 export interface Post {
@@ -21,11 +22,13 @@ export const mockUsers: User[] = [
     id: "1",
     name: "John Doe",
     email: "john@example.com",
+    passwordHash: "hashed_password_123",
   },
   {
     id: "2",
     name: "Jane Smith",
     email: "jane@example.com",
+    passwordHash: "hashed_password_456",
   },
 ];
 
@@ -133,11 +136,16 @@ Choose the right tool for your specific needs.`,
   },
 ];
 
-// Mock current user (simulating logged-in user)
-export let currentUser: User | null = mockUsers[0];
-
-export const setCurrentUser = (user: User | null) => {
-  currentUser = user;
+// Initialize localStorage with mock data if empty
+export const initializeMockData = () => {
+  const POSTS_KEY = "blog_posts";
+  const USERS_KEY = "blog_users";
+  
+  if (!localStorage.getItem(POSTS_KEY)) {
+    localStorage.setItem(POSTS_KEY, JSON.stringify(mockPosts));
+  }
+  
+  if (!localStorage.getItem(USERS_KEY)) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
+  }
 };
-
-export const getCurrentUser = () => currentUser;
